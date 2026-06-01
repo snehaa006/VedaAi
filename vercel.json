@@ -6,7 +6,8 @@
       "framework": "nextjs"
     },
     "backend": {
-      "root": "backend",
+      "entrypoint": "backend/src/index.ts",
+      "framework": "express",
       "routePrefix": "/_/backend"
     }
   }
