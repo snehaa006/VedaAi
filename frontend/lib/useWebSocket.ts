@@ -11,6 +11,8 @@ const getWebSocketUrl = () => {
     return configuredWsUrl;
   }
 
+  if (isDeployedBrowser) return null;
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}/_/backend/ws`;
 };
@@ -25,7 +27,10 @@ export function useWebSocket(
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const ws = new WebSocket(getWebSocketUrl());
+    const wsUrl = getWebSocketUrl();
+    if (!wsUrl) return;
+
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {

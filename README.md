@@ -66,6 +66,11 @@ This project was built as part of the VedaAI Full Stack Engineering Assignment.
 
 Clone the repository, add your Anthropic API key to the environment file, and start the application using Docker Compose.
 
+```bash
+npm install
+ANTHROPIC_API_KEY=sk-ant-your-key-here npm run docker:up
+```
+
 Application URLs:
 
 * Frontend: `http://localhost:3000`
@@ -83,10 +88,22 @@ Backend:
 * Add your Anthropic API key
 * Install dependencies and start the development server
 
+```bash
+cd backend
+npm install
+npm run dev
+```
+
 Frontend:
 
 * Install dependencies
 * Start the development server
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 URLs:
 
@@ -106,6 +123,8 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 ANTHROPIC_API_KEY=sk-ant-your-key-here
 FRONTEND_URL=http://localhost:3000
+# Optional: use synchronous generation on serverless hosts
+INLINE_GENERATION=false
 ```
 
 ## Frontend (`frontend/.env.local`)
@@ -116,6 +135,8 @@ NEXT_PUBLIC_WS_URL=ws://localhost:3001/ws
 ```
 
 If no Anthropic API key is provided, the app falls back to structured mock data so the full flow can still be demonstrated.
+
+For Vercel-style serverless deployments, set `INLINE_GENERATION=true` if background workers or WebSocket upgrades are unavailable. Local and Docker runs still use Redis-backed BullMQ workers by default.
 
 ---
 

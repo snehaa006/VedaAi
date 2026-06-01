@@ -9,6 +9,7 @@ const Result_1 = __importDefault(require("../models/Result"));
 const queue_1 = require("../services/queue");
 const uuid_1 = require("uuid");
 const router = (0, express_1.Router)();
+const shouldGenerateInline = () => process.env.INLINE_GENERATION === 'true' || process.env.VERCEL === '1';
 // GET all assignments
 router.get('/', async (req, res) => {
     try {
@@ -61,13 +62,26 @@ router.post('/', async (req, res) => {
             status: 'pending',
         });
         await assignment.save();
-        // Queue the job
-        const job = await queue_1.generationQueue.add('generate', { assignmentId: assignment._id.toString() }, { jobId: (0, uuid_1.v4)(), attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
-        assignment.jobId = job.id;
-        await assignment.save();
+        if (shouldGenerateInline()) {
+            try {
+                await (0, queue_1.processAssignmentGeneration)(assignment._id.toString());
+            }
+            catch (err) {
+                assignment.status = 'failed';
+                await assignment.save();
+                return res.status(500).json({ success: false, error: err.message });
+            }
+        }
+        else {
+            // Queue the job
+            const job = await queue_1.generationQueue.add('generate', { assignmentId: assignment._id.toString() }, { jobId: (0, uuid_1.v4)(), attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
+            assignment.jobId = job.id;
+            await assignment.save();
+        }
+        const savedAssignment = await Assignment_1.default.findById(assignment._id);
         res.status(201).json({
             success: true,
-            data: assignment,
+            data: savedAssignment || assignment,
             message: 'Assignment created. Generation started.',
         });
     }
@@ -118,9 +132,21 @@ router.post('/:id/regenerate', async (req, res) => {
         assignment.status = 'pending';
         assignment.resultId = undefined;
         await assignment.save();
-        const job = await queue_1.generationQueue.add('generate', { assignmentId: assignment._id.toString() }, { jobId: (0, uuid_1.v4)(), attempts: 3 });
-        assignment.jobId = job.id;
-        await assignment.save();
+        if (shouldGenerateInline()) {
+            try {
+                await (0, queue_1.processAssignmentGeneration)(assignment._id.toString());
+            }
+            catch (err) {
+                assignment.status = 'failed';
+                await assignment.save();
+                return res.status(500).json({ success: false, error: err.message });
+            }
+        }
+        else {
+            const job = await queue_1.generationQueue.add('generate', { assignmentId: assignment._id.toString() }, { jobId: (0, uuid_1.v4)(), attempts: 3 });
+            assignment.jobId = job.id;
+            await assignment.save();
+        }
         res.json({ success: true, message: 'Regeneration started' });
     }
     catch (err) {

@@ -185,6 +185,7 @@ export async function generateQuestionPaper(input: GenerationInput): Promise<{
   }
 
   const questionPaper: IQuestionPaper = JSON.parse(jsonMatch[0]);
+  validateQuestionPaper(questionPaper);
 
   // Build answer key
   const answerKey: Array<{ questionId: string; answer: string }> = [];
@@ -197,6 +198,28 @@ export async function generateQuestionPaper(input: GenerationInput): Promise<{
   });
 
   return { questionPaper, answerKey };
+}
+
+function validateQuestionPaper(questionPaper: IQuestionPaper) {
+  if (!questionPaper || !Array.isArray(questionPaper.sections)) {
+    throw new Error('AI response did not include question paper sections');
+  }
+
+  for (const section of questionPaper.sections) {
+    if (!section.id || !section.title || !Array.isArray(section.questions)) {
+      throw new Error('AI response included an invalid section');
+    }
+
+    for (const question of section.questions) {
+      if (!question.id || !question.text || !question.type || typeof question.marks !== 'number') {
+        throw new Error('AI response included an invalid question');
+      }
+
+      if (!['Easy', 'Moderate', 'Hard'].includes(question.difficulty)) {
+        throw new Error('AI response included an invalid difficulty value');
+      }
+    }
+  }
 }
 
 function generateMockQuestionPaper(input: GenerationInput): {

@@ -45,11 +45,13 @@ app.get('/api/health', (req, res) => {
 // Connect to MongoDB and start
 const PORT = process.env.PORT || 3001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/vedaai';
+const INLINE_GENERATION = process.env.INLINE_GENERATION === 'true' || process.env.VERCEL === '1';
 mongoose_1.default
     .connect(MONGODB_URI)
     .then(() => {
     console.log('✅ MongoDB connected');
-    (0, queue_1.startWorker)();
+    if (!INLINE_GENERATION)
+        (0, queue_1.startWorker)();
     server.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
     });
@@ -57,7 +59,8 @@ mongoose_1.default
     .catch((err) => {
     console.error('MongoDB connection error:', err);
     // Start server anyway (for development without MongoDB)
-    (0, queue_1.startWorker)();
+    if (!INLINE_GENERATION)
+        (0, queue_1.startWorker)();
     server.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT} (without DB)`);
     });

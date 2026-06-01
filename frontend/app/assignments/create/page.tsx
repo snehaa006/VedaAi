@@ -156,6 +156,11 @@ export default function CreatePage() {
       setCreatedId(a._id);
       toast.success('Generating question paper...');
 
+      if (a.status === 'completed') {
+        router.push(`/assignments/${a._id}/result`);
+        return;
+      }
+
       // Poll fallback
       let polls = 0;
       const poll = setInterval(async () => {
@@ -165,9 +170,17 @@ export default function CreatePage() {
           if (r.data.status === 'completed') {
             clearInterval(poll);
             router.push(`/assignments/${a._id}/result`);
+          } else if (r.data.status === 'failed') {
+            clearInterval(poll);
+            toast.error('Generation failed. Please try again.');
+            setSubmitting(false);
           }
         } catch {}
-        if (polls > 30) clearInterval(poll);
+        if (polls > 30) {
+          clearInterval(poll);
+          toast.error('Generation is taking longer than expected. Please check the assignment later.');
+          setSubmitting(false);
+        }
       }, 3000);
     } catch (e: any) {
       toast.error(e?.response?.data?.error || 'Failed to create');

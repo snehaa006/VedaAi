@@ -162,6 +162,7 @@ async function generateQuestionPaper(input) {
         throw new Error('No valid JSON in AI response');
     }
     const questionPaper = JSON.parse(jsonMatch[0]);
+    validateQuestionPaper(questionPaper);
     // Build answer key
     const answerKey = [];
     questionPaper.sections.forEach((section) => {
@@ -172,6 +173,24 @@ async function generateQuestionPaper(input) {
         });
     });
     return { questionPaper, answerKey };
+}
+function validateQuestionPaper(questionPaper) {
+    if (!questionPaper || !Array.isArray(questionPaper.sections)) {
+        throw new Error('AI response did not include question paper sections');
+    }
+    for (const section of questionPaper.sections) {
+        if (!section.id || !section.title || !Array.isArray(section.questions)) {
+            throw new Error('AI response included an invalid section');
+        }
+        for (const question of section.questions) {
+            if (!question.id || !question.text || !question.type || typeof question.marks !== 'number') {
+                throw new Error('AI response included an invalid question');
+            }
+            if (!['Easy', 'Moderate', 'Hard'].includes(question.difficulty)) {
+                throw new Error('AI response included an invalid difficulty value');
+            }
+        }
+    }
 }
 function generateMockQuestionPaper(input) {
     const difficulties = ['Easy', 'Moderate', 'Hard'];
