@@ -10,10 +10,15 @@ const aiService_1 = require("./aiService");
 const Assignment_1 = __importDefault(require("../models/Assignment"));
 const Result_1 = __importDefault(require("../models/Result"));
 const websocket_1 = require("./websocket");
-const connection = {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-};
+const connection = process.env.REDIS_URL
+    ? {
+        url: process.env.REDIS_URL,
+        tls: process.env.REDIS_URL.startsWith('rediss://') ? {} : undefined,
+    }
+    : {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+    };
 exports.generationQueue = new bullmq_1.Queue('question-generation', { connection });
 function startWorker() {
     const worker = new bullmq_1.Worker('question-generation', async (job) => {

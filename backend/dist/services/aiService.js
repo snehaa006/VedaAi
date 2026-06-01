@@ -1,7 +1,16 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateQuestionPaper = generateQuestionPaper;
+const child_process_1 = require("child_process");
+const fs_1 = require("fs");
+const os_1 = __importDefault(require("os"));
+const path_1 = __importDefault(require("path"));
+const util_1 = require("util");
 const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
 function buildPrompt(input) {
     const questionBreakdown = input.questionTypes
         .map((qt) => `- ${qt.count} ${qt.type} questions, each worth ${qt.marks} mark(s)`)
@@ -74,9 +83,51 @@ function getImageContent(uploadedFile) {
         },
     };
 }
+async function extractTextFromImage(uploadedFile) {
+    if (!SUPPORTED_IMAGE_TYPES.has(uploadedFile.mimeType))
+        return '';
+    const extByType = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/gif': 'gif',
+        'image/webp': 'webp',
+    };
+    const tempDir = await fs_1.promises.mkdtemp(path_1.default.join(os_1.default.tmpdir(), 'vedaai-ocr-'));
+    const imagePath = path_1.default.join(tempDir, `upload.${extByType[uploadedFile.mimeType] || 'img'}`);
+    try {
+        await fs_1.promises.writeFile(imagePath, Buffer.from(uploadedFile.data, 'base64'));
+        const { stdout } = await execFileAsync('tesseract', [imagePath, 'stdout', '-l', 'eng'], {
+            timeout: 30000,
+            maxBuffer: 1024 * 1024,
+        });
+        return stdout.replace(/\s+/g, ' ').trim();
+    }
+    catch (err) {
+        if (err?.code === 'ENOENT') {
+            throw new Error('Local OCR requires tesseract to be installed.');
+        }
+        throw new Error('Could not read text from the uploaded image. Try a clearer image with printed text.');
+    }
+    finally {
+        await fs_1.promises.rm(tempDir, { recursive: true, force: true });
+    }
+}
 async function generateQuestionPaper(input) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
+        if (input.uploadedFile) {
+            const extractedText = await extractTextFromImage(input.uploadedFile);
+            if (!extractedText) {
+                throw new Error('No readable text was found in the uploaded image.');
+            }
+            return generateMockQuestionPaper({
+                ...input,
+                uploadedFileContent: [
+                    input.uploadedFileContent,
+                    `Text extracted from uploaded image "${input.uploadedFile.name}": ${extractedText}`,
+                ].filter(Boolean).join('\n\n'),
+            });
+        }
         // Return mock data if no API key
         return generateMockQuestionPaper(input);
     }
@@ -126,6 +177,7 @@ function generateMockQuestionPaper(input) {
     const difficulties = ['Easy', 'Moderate', 'Hard'];
     const sections = [];
     const answerKey = [];
+    const referenceSnippets = getReferenceSnippets(input.uploadedFileContent);
     const sectionLabels = ['A', 'B', 'C', 'D'];
     let questionCounter = 1;
     let sectionIdx = 0;
@@ -134,15 +186,22 @@ function generateMockQuestionPaper(input) {
         for (let i = 0; i < qt.count; i++) {
             const qId = `q${questionCounter}`;
             const difficulty = difficulties[Math.floor((i / qt.count) * 3)] || 'Moderate';
+            const snippet = referenceSnippets[(questionCounter - 1) % referenceSnippets.length];
+            const text = snippet
+                ? buildReferenceQuestion(qt.type, input.subject, input.grade, snippet, i + 1)
+                : `[${difficulty}] Sample ${qt.type} question ${i + 1} for ${input.subject} Grade ${input.grade}.`;
+            const answer = snippet
+                ? `Expected answer should explain: ${snippet}`
+                : `Sample answer for question ${questionCounter}.`;
             questions.push({
                 id: qId,
-                text: `[${difficulty}] Sample ${qt.type} question ${i + 1} for ${input.subject} Grade ${input.grade}.`,
+                text,
                 difficulty,
                 marks: qt.marks,
                 type: qt.type,
-                answer: `Sample answer for question ${questionCounter}.`,
+                answer,
             });
-            answerKey.push({ questionId: qId, answer: `Sample answer for question ${questionCounter}.` });
+            answerKey.push({ questionId: qId, answer });
             questionCounter++;
         }
         sections.push({
@@ -165,4 +224,55 @@ function generateMockQuestionPaper(input) {
         },
         answerKey,
     };
+}
+function getReferenceSnippets(content) {
+    if (!content)
+        return [];
+    const cleaned = content
+        .replace(/^Text extracted from uploaded image "[^"]+":\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!cleaned)
+        return [];
+    const sentenceSnippets = cleaned
+        .split(/(?<=[.!?])\s+|\n+/)
+        .map((part) => part.trim())
+        .filter((part) => part.length >= 25)
+        .slice(0, 12);
+    if (sentenceSnippets.length) {
+        return sentenceSnippets.map((part) => part.slice(0, 220));
+    }
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    const chunks = [];
+    for (let i = 0; i < words.length; i += 18) {
+        const chunk = words.slice(i, i + 18).join(' ');
+        if (chunk.length >= 20)
+            chunks.push(chunk.slice(0, 220));
+        if (chunks.length >= 12)
+            break;
+    }
+    return chunks;
+}
+function buildReferenceQuestion(type, subject, grade, snippet, index) {
+    const stem = snippet.replace(/\s+/g, ' ').trim();
+    const lowerType = type.toLowerCase();
+    if (lowerType.includes('multiple choice')) {
+        return `Based on the uploaded image, which statement best explains this ${subject} concept for Grade ${grade}: "${stem}"?`;
+    }
+    if (lowerType.includes('true/false')) {
+        return `State whether the following idea from the uploaded image is true or false and justify your answer: "${stem}".`;
+    }
+    if (lowerType.includes('fill')) {
+        return `Fill in the blank using the concept shown in the uploaded image: ${stem.replace(/\b\w{5,}\b/, '_____')}`;
+    }
+    if (lowerType.includes('diagram') || lowerType.includes('graph')) {
+        return `Using the uploaded image as reference, explain the labelled concept or visual information related to: "${stem}".`;
+    }
+    if (lowerType.includes('numerical')) {
+        return `Create and solve a Grade ${grade} ${subject} numerical problem using the information or concept shown here: "${stem}".`;
+    }
+    if (lowerType.includes('long') || lowerType.includes('essay')) {
+        return `Explain in detail the concept from the uploaded image: "${stem}".`;
+    }
+    return `Answer the following from the uploaded image content (${index}): "${stem}".`;
 }

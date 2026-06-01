@@ -25,7 +25,7 @@ const allowedOrigins = new Set([
 app.use((0, helmet_1.default)({ crossOriginEmbedderPolicy: false }));
 app.use((0, cors_1.default)({
     origin(origin, callback) {
-        if (!origin || allowedOrigins.has(origin)) {
+        if (!origin || allowedOrigins.has(origin) || origin.endsWith('.vercel.app')) {
             callback(null, true);
             return;
         }
