@@ -122,6 +122,9 @@ MONGODB_URI=mongodb://localhost:27017/vedaai
 REDIS_HOST=localhost
 REDIS_PORT=6379
 ANTHROPIC_API_KEY=sk-ant-your-key-here
+# Optional alternative provider
+OPENAI_API_KEY=sk-your-openai-key-here
+OPENAI_MODEL=gpt-4o-mini
 FRONTEND_URL=http://localhost:3000
 # Optional: use synchronous generation on serverless hosts
 INLINE_GENERATION=false
@@ -134,7 +137,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api
 NEXT_PUBLIC_WS_URL=ws://localhost:3001/ws
 ```
 
-If no Anthropic API key is provided, the app falls back to structured mock data so the full flow can still be demonstrated.
+If no AI provider key is provided, or if the provider is temporarily unavailable, the app falls back to structured mock data so the full flow can still be demonstrated.
 
 For Vercel-style serverless deployments, set `INLINE_GENERATION=true` if background workers or WebSocket upgrades are unavailable. Local and Docker runs still use Redis-backed BullMQ workers by default.
 

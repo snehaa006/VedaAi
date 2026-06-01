@@ -1,6 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { assignmentsApi } from '@/lib/api';
+import { useAssignmentStore } from '@/store/assignmentStore';
 
 const NAV = [
   { label: 'Home', href: '/', icon: (
@@ -41,6 +44,22 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { assignments, setAssignments } = useAssignmentStore();
+  const assignmentCount = assignments.length;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    assignmentsApi.getAll()
+      .then((res) => {
+        if (isMounted) setAssignments(res.data.data || []);
+      })
+      .catch(() => {
+        // Keep the existing local count if the sidebar refresh cannot reach the API.
+      });
+
+    return () => { isMounted = false; };
+  }, [setAssignments]);
 
   const active = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -127,7 +146,7 @@ export default function Sidebar() {
               >
                 <span style={{ flexShrink: 0 }}>{icon}</span>
                 <span style={{ flex: 1 }}>{label}</span>
-                {badge && isActive && (
+                {badge && isActive && assignmentCount > 0 && (
                   <span style={{
                     background: '#E8450A',
                     color: '#fff',
@@ -138,7 +157,7 @@ export default function Sidebar() {
                     minWidth: 18,
                     textAlign: 'center',
                     lineHeight: '16px',
-                  }}>10</span>
+                  }}>{assignmentCount > 99 ? '99+' : assignmentCount}</span>
                 )}
               </div>
             </Link>

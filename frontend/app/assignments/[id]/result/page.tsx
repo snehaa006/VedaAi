@@ -486,7 +486,7 @@ ${sec.questions.map((q, i) => `
 
                   <div style={{ marginBottom: 14 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 3 }}>
-                      Short Answer Questions
+                      {sec.questions[0]?.type || 'Questions'}
                     </p>
                     <p style={{ fontSize: 12, color: '#6B7280', fontStyle: 'italic' }}>
                       {sec.instruction}
