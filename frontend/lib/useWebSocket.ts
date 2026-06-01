@@ -3,8 +3,13 @@ import { useEffect, useRef, useCallback } from 'react';
 import { WSMessage } from '@/types';
 
 const getWebSocketUrl = () => {
-  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
   if (typeof window === 'undefined') return 'ws://localhost:3001/ws';
+
+  const configuredWsUrl = process.env.NEXT_PUBLIC_WS_URL;
+  const isDeployedBrowser = !['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (configuredWsUrl && !(isDeployedBrowser && configuredWsUrl.includes('localhost'))) {
+    return configuredWsUrl;
+  }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}/_/backend/ws`;
