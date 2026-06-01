@@ -133,46 +133,55 @@ async function generateQuestionPaper(input) {
     }
     const prompt = buildPrompt(input);
     const imageContent = getImageContent(input.uploadedFile);
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 4000,
-            messages: [{
-                    role: 'user',
-                    content: imageContent
-                        ? [{ type: 'text', text: prompt }, imageContent]
-                        : prompt,
-                }],
-        }),
-    });
-    if (!response.ok) {
-        throw new Error(`AI API error: ${response.status}`);
-    }
-    const data = await response.json();
-    const rawText = data.content?.[0]?.text || '';
-    // Extract JSON from response
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-        throw new Error('No valid JSON in AI response');
-    }
-    const questionPaper = JSON.parse(jsonMatch[0]);
-    validateQuestionPaper(questionPaper);
-    // Build answer key
-    const answerKey = [];
-    questionPaper.sections.forEach((section) => {
-        section.questions.forEach((q) => {
-            if (q.answer) {
-                answerKey.push({ questionId: q.id, answer: q.answer });
-            }
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 4000,
+                messages: [{
+                        role: 'user',
+                        content: imageContent
+                            ? [{ type: 'text', text: prompt }, imageContent]
+                            : prompt,
+                    }],
+            }),
         });
-    });
-    return { questionPaper, answerKey };
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => '');
+            console.error('AI API error:', response.status, errorBody.slice(0, 500));
+            return generateMockQuestionPaper(input);
+        }
+        const data = await response.json();
+        const rawText = data.content?.[0]?.text || '';
+        // Extract JSON from response
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error('No valid JSON in AI response');
+            return generateMockQuestionPaper(input);
+        }
+        const questionPaper = JSON.parse(jsonMatch[0]);
+        validateQuestionPaper(questionPaper);
+        // Build answer key
+        const answerKey = [];
+        questionPaper.sections.forEach((section) => {
+            section.questions.forEach((q) => {
+                if (q.answer) {
+                    answerKey.push({ questionId: q.id, answer: q.answer });
+                }
+            });
+        });
+        return { questionPaper, answerKey };
+    }
+    catch (err) {
+        console.error('AI generation failed, using fallback:', err);
+        return generateMockQuestionPaper(input);
+    }
 }
 function validateQuestionPaper(questionPaper) {
     if (!questionPaper || !Array.isArray(questionPaper.sections)) {
