@@ -1,124 +1,105 @@
 # VedaAI – AI Assessment Creator
 
-A full-stack AI-powered platform for teachers to create, manage, and generate question papers using AI.
+VedaAI is a full-stack web application that helps teachers create and manage assessments using AI. Teachers can generate structured question papers, manage assignments, and view results in real time.
 
-Built for the VedaAI Full Stack Engineering Assignment.
-
----
-
-## 🚀 Live Demo
-
-> Deploy using Docker Compose (see below) or run locally.
+This project was built as part of the VedaAI Full Stack Engineering Assignment.
 
 ---
 
-## 🏗 Architecture Overview
+# Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
-│                        Frontend (Next.js)                    │
-│   ┌──────────┐  ┌──────────────┐  ┌───────────────────┐    │
-│   │Assignments│  │Create Form   │  │Result / Output    │    │
-│   │  List    │  │(2-step wizard)│  │(Question Paper)   │    │
-│   └──────────┘  └──────────────┘  └───────────────────┘    │
-│         Zustand state   │   WebSocket (real-time updates)   │
-└──────────────────────────┼──────────────────────────────────┘
-                           │ HTTP + WS
-┌──────────────────────────▼──────────────────────────────────┐
-│                      Backend (Node.js + Express)             │
-│                                                              │
-│  POST /api/assignments  ──► BullMQ Queue ──► Worker         │
-│  GET  /api/assignments/:id/result                            │
-│  POST /api/assignments/:id/regenerate                        │
-│  WS   /ws  (subscribe to assignment updates)                 │
-│                                                              │
-│  Worker Flow:                                                │
-│  1. Fetch assignment from MongoDB                            │
-│  2. Build structured prompt                                  │
-│  3. Call Anthropic Claude API                                │
-│  4. Parse + validate JSON response                           │
-│  5. Store Result in MongoDB                                  │
-│  6. Notify frontend via WebSocket                            │
-│                                                              │
-│  MongoDB  │  Redis (BullMQ jobs)  │  WebSocket Server       │
+│                    Frontend (Next.js)                      │
+│                                                             │
+│  Assignments List   |   Create Assignment   |   Results    │
+│                                                             │
+│      Zustand state management + WebSocket updates           │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                        HTTP + WebSocket
+                             │
+┌────────────────────────────▼────────────────────────────────┐
+│                 Backend (Node.js + Express)                │
+│                                                             │
+│  POST /api/assignments  →  BullMQ Queue  →  Worker         │
+│                                                             │
+│  Worker Flow:                                               │
+│  1. Fetch assignment from MongoDB                           │
+│  2. Build AI prompt                                         │
+│  3. Call Anthropic Claude API                               │
+│  4. Parse and validate response                             │
+│  5. Store generated result                                  │
+│  6. Notify frontend using WebSocket                         │
+│                                                             │
+│  MongoDB   |   Redis   |   WebSocket Server                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🛠 Tech Stack
+# Tech Stack
 
-| Layer       | Technology                              |
-|-------------|----------------------------------------|
-| Frontend    | Next.js 16, TypeScript, Zustand, Axios |
-| Styling     | Inline styles (pixel-perfect Figma)    |
-| Backend     | Node.js, Express, TypeScript           |
-| Database    | MongoDB + Mongoose                     |
-| Queue       | BullMQ + Redis                         |
-| Real-time   | WebSocket (ws library)                 |
-| AI          | Anthropic Claude (claude-sonnet-4)     |
-
----
-
-## 📦 Setup Instructions
-
-### Prerequisites
-- Node.js 20+
-- Docker + Docker Compose (recommended)
-- Anthropic API key
-
-### Option 1: Docker Compose (Recommended)
-
-```bash
-# Clone the repo
-git clone <your-repo-url>
-cd vedaai
-
-# Set your API key
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
-
-# Start everything
-docker-compose up -d
-
-# App is live at:
-# Frontend: http://localhost:3000
-# Backend:  http://localhost:3001
-```
-
-### Option 2: Local Development
-
-**1. Start MongoDB and Redis**
-```bash
-# Using Docker
-docker run -d -p 27017:27017 mongo:7
-docker run -d -p 6379:6379 redis:7-alpine
-```
-
-**2. Backend**
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your ANTHROPIC_API_KEY
-npm install
-npm run dev
-```
-
-**3. Frontend**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend: http://localhost:3000  
-Backend: http://localhost:3001
+| Layer             | Technology                             |
+| ----------------- | -------------------------------------- |
+| Frontend          | Next.js 16, TypeScript, Zustand, Axios |
+| Styling           | Inline styles                          |
+| Backend           | Node.js, Express, TypeScript           |
+| Database          | MongoDB with Mongoose                  |
+| Queue System      | BullMQ with Redis                      |
+| Real-time Updates | WebSocket (`ws`)                       |
+| AI Integration    | Anthropic Claude (claude-sonnet-4)     |
 
 ---
 
-## 🔑 Environment Variables
+# Setup Instructions
 
-**Backend (`backend/.env`)**
-```
+## Prerequisites
+
+* Node.js 20+
+* Docker and Docker Compose
+* Anthropic API key
+
+---
+
+## Docker Setup
+
+Clone the repository, add your Anthropic API key to the environment file, and start the application using Docker Compose.
+
+Application URLs:
+
+* Frontend: `http://localhost:3000`
+* Backend: `http://localhost:3001`
+
+---
+
+## Local Development
+
+Start MongoDB and Redis locally, then run the backend and frontend applications separately.
+
+Backend:
+
+* Copy `.env.example` to `.env`
+* Add your Anthropic API key
+* Install dependencies and start the development server
+
+Frontend:
+
+* Install dependencies
+* Start the development server
+
+URLs:
+
+* Frontend: `http://localhost:3000`
+* Backend: `http://localhost:3001`
+
+---
+
+# Environment Variables
+
+## Backend (`backend/.env`)
+
+```env
 PORT=3001
 MONGODB_URI=mongodb://localhost:27017/vedaai
 REDIS_HOST=localhost
@@ -127,86 +108,115 @@ ANTHROPIC_API_KEY=sk-ant-your-key-here
 FRONTEND_URL=http://localhost:3000
 ```
 
-**Frontend (`frontend/.env.local`)**
-```
+## Frontend (`frontend/.env.local`)
+
+```env
 NEXT_PUBLIC_API_URL=http://localhost:3001/api
 NEXT_PUBLIC_WS_URL=ws://localhost:3001/ws
 ```
 
-> **Note:** If no `ANTHROPIC_API_KEY` is set, the system falls back to intelligently-structured mock data so you can demo the full UI flow.
+If no Anthropic API key is provided, the app falls back to structured mock data so the full flow can still be demonstrated.
 
 ---
 
-## ✨ Features Implemented
+# Features
 
-### Core Features
-- ✅ **Assignment Creation** – 2-step wizard with file upload, due date, question types (with +/- controls)
-- ✅ **AI Question Generation** – Structured prompt → Claude API → parsed JSON (never raw output)
-- ✅ **Background Jobs** – BullMQ workers process generation asynchronously
-- ✅ **Real-time Updates** – WebSocket notifies frontend when generation completes
-- ✅ **MongoDB Storage** – Assignments + Results persisted
-- ✅ **Redis Caching** – BullMQ job state via Redis
-- ✅ **Output Page** – Structured question paper with sections, difficulty badges, marks
-- ✅ **Answer Key** – Collapsible answer key section
-- ✅ **Validation** – No empty/negative values, required fields enforced
+## Assignment Management
 
-### Bonus Features
-- ✅ **Download as PDF** – Print-optimized HTML exported via browser print dialog
-- ✅ **Regenerate** – One-click regeneration with new AI output
-- ✅ **Difficulty Badges** – Color-coded Easy/Moderate/Hard tags
-- ✅ **Demo Mode** – Works without backend (mock data fallback)
-- ✅ **Delete Assignments** – With result cleanup
-- ✅ **Search/Filter** – Client-side assignment search
+* Create assignments using a 2-step form flow
+* Upload supporting files
+* Add due dates and question type distribution
+* View all assignments in a dashboard
+* Delete assignments
 
----
+## AI Question Generation
 
-## 🎨 Design Notes
+* Structured AI prompt generation
+* Background processing using BullMQ workers
+* Claude API integration
+* JSON validation before storing responses
+* Automatic answer key generation
 
-The UI is a pixel-perfect replication of the provided Figma designs:
-- **Empty State**: Illustration + "No assignments yet" with CTA
-- **Filled State**: Grid cards with status indicators and context menu (View / Delete)
-- **Create Form**: 2-step wizard with file upload drop zone, question type table with +/- stepper
-- **Output Page**: Formal exam paper layout with school header, student info fields, sections, and difficulty badges
+## Real-time Updates
 
----
+* WebSocket-based status updates
+* Polling fallback for reliability
+* Live completion notifications
 
-## 📡 API Reference
+## Output Generation
 
-| Method | Endpoint                          | Description                    |
-|--------|-----------------------------------|--------------------------------|
-| GET    | `/api/assignments`                | List all assignments           |
-| POST   | `/api/assignments`                | Create + queue generation      |
-| GET    | `/api/assignments/:id`            | Get single assignment          |
-| DELETE | `/api/assignments/:id`            | Delete assignment + result     |
-| GET    | `/api/assignments/:id/result`     | Get generated question paper   |
-| POST   | `/api/assignments/:id/regenerate` | Re-queue generation            |
-
-WebSocket: `ws://localhost:3001/ws`  
-Subscribe: `{ "type": "subscribe", "assignmentId": "<id>" }`  
-Updates: `{ "type": "assignment_update", "status": "completed", "resultId": "..." }`
+* Structured question paper layout
+* Difficulty labels for questions
+* Section-wise grouping
+* Printable PDF-friendly format
+* Regenerate question papers with one click
 
 ---
 
-## 🧠 AI Prompt Strategy
+# API Reference
 
-The system builds a structured prompt that specifies:
-- Subject, grade, school name
-- Question breakdown by type (MCQ, Short, Long, etc.)
-- Total questions and marks
-- Optional reference material from uploaded files
+| Method | Endpoint                          | Description            |
+| ------ | --------------------------------- | ---------------------- |
+| GET    | `/api/assignments`                | Get all assignments    |
+| POST   | `/api/assignments`                | Create assignment      |
+| GET    | `/api/assignments/:id`            | Get assignment details |
+| DELETE | `/api/assignments/:id`            | Delete assignment      |
+| GET    | `/api/assignments/:id/result`     | Get generated paper    |
+| POST   | `/api/assignments/:id/regenerate` | Regenerate paper       |
 
-The AI is instructed to return **only valid JSON** with a strict schema, which is then parsed and validated server-side before storing. This ensures:
-- No raw AI text is ever rendered
-- Consistent difficulty distribution (~30% Easy, 40% Moderate, 30% Hard)
-- Proper section grouping
-- Answer key generation
+WebSocket endpoint:
+
+```text
+ws://localhost:3001/ws
+```
+
+Subscribe format:
+
+```json
+{
+  "type": "subscribe",
+  "assignmentId": "<id>"
+}
+```
+
+Update format:
+
+```json
+{
+  "type": "assignment_update",
+  "status": "completed",
+  "resultId": "..."
+}
+```
 
 ---
 
-## 🏆 Extra Points
+# AI Prompt Strategy
 
-1. **Fallback Mock Data** – Full UI flow works even without an AI API key
-2. **PDF Export** – Properly formatted print-ready HTML with answer key
-3. **Zustand** for client state management
-4. **Polling + WebSocket** dual approach for reliability
-5. **Monorepo** with Docker Compose for one-command deployment
+The backend creates structured prompts based on:
+
+* Subject and grade
+* School information
+* Question distribution
+* Marks allocation
+* Uploaded reference material
+
+The AI is instructed to return only valid JSON following a strict schema. Responses are parsed and validated before being stored.
+
+This ensures:
+
+* Consistent formatting
+* Structured sections
+* Difficulty balance
+* Reliable answer key generation
+* No raw AI output rendered directly
+
+---
+
+# Additional Notes
+
+* The project is organized as a monorepo
+* Docker Compose support allows one-command setup
+* Zustand is used for lightweight frontend state management
+* Mock mode allows frontend demos without an API key
+* Both WebSocket updates and polling are implemented for reliability
